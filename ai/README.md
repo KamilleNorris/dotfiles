@@ -9,7 +9,7 @@ already staged in git.
 | Path | What it is |
 | --- | --- |
 | `AGENTS.md` | Canonical global instructions. Linked to Claude's `CLAUDE.md`, Copilot's `copilot-instructions.md`, Gemini's `GEMINI.md`. |
-| `skills/` | Portable `SKILL.md` skills, linked as the shared `~/.agents/skills` store that Claude Code and Copilot CLI both read. |
+| `skills/` | Portable `SKILL.md` skills you author. Each is linked into the shared `~/.agents/skills` store that Claude Code and Copilot CLI both read. That store is a real directory, so global installs (`npx skills add -g`) land there and stay out of this repo. |
 | `vendor/` | Submodules for skills authored elsewhere; `skills/` holds symlinks into them rather than copies. |
 | `prompts/` | Reusable prompt snippets, referenced from skills or pasted by hand. |
 | `adapters/claude/` | Claude Code settings and statusline. |
