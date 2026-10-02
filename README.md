@@ -6,20 +6,20 @@ Personal shell and AI-agent configuration.
 | --- | --- |
 | `.zshrc` | oh-my-zsh config: `agnoster` theme, plugins, and aliases — hook-free git wrappers (`pbgco`, `pbgpull`, `pbgmerge`, `pbgrbi`), `socat` port forwards, `gbd`. |
 | `Brewfile` | Personal macOS toolchain, installed by `bootstrap.sh` via `brew bundle`. Work-only tools stay off it. |
-| `bootstrap.sh` | First-run shell setup for macOS (Homebrew) or Debian/Ubuntu (apt): installs zsh, oh-my-zsh, the two zsh plugins, a powerline font, and gitleaks, then links `.zshrc`. |
+| `bootstrap.sh` | First-run shell setup for macOS (Homebrew) or Debian/Ubuntu (apt): installs zsh, oh-my-zsh, the two zsh plugins, a powerline font, and gitleaks, then syncs `.zshrc` into a managed block in `~/.zshrc`. |
 | `ai/` | Agent-agnostic instructions, skills, and per-agent settings. See [ai/README.md](ai/README.md). |
 | `vscode/` | A baseline of VS Code settings, including the Copilot chat keys. Merged into the machine's own `settings.json`, never linked over it. |
 | `worktrunk/` | Worktree path layout and the post-switch log hook; seeded only where no worktrunk config exists. |
 | `git/` | Global git identity and the global gitignore (`~/.gitconfig`, `~/.config/git/ignore`). |
 | `hooks/` | `pre-commit`, which blocks a commit whose staged changes look like a credential. Needs `gitleaks`. |
-| `lib/` | Symlink helpers shared by the two installers, plus the additive JSONC merge used for VS Code. |
+| `lib/` | Symlink helpers shared by the two installers, the additive JSONC merge used for VS Code, and the managed-block sync used for `.zshrc`. |
 
 ## Setup
 
 ```bash
 git clone --recurse-submodules git@github.com:LadyKamille/dotfiles.git ~/dotfiles
 cd ~/dotfiles
-./bootstrap.sh   # zsh, oh-my-zsh, plugins, fonts, gitleaks; links .zshrc
+./bootstrap.sh   # zsh, oh-my-zsh, plugins, fonts, gitleaks; syncs .zshrc
 ./install.sh     # git config, the pre-commit hook, and all agent config
 ```
 
@@ -43,15 +43,31 @@ comments alone, and keeps a timestamped copy beside the original. The tradeoff
 is one-directional: settings changed in VS Code do not flow back here, so add
 anything worth keeping to `vscode/settings.json` yourself.
 
-## Machine-specific shell settings
+## `~/.zshrc` belongs to the machine
 
-`bootstrap.sh` links `~/.zshrc` to the tracked one, and the tracked one sources
-`~/.zshrc.local` when it exists. PATH entries, tokens, and per-host tweaks go in
-that untracked file — never in `.zshrc`, which is public.
+`~/.zshrc` is a real file, not a link, so installers that append to it (nvm,
+Kiro, work setup scripts) edit the machine's file instead of this repo.
+`bootstrap.sh` copies the tracked `.zshrc` into a marked block at the top:
 
-Migrating a machine whose `~/.zshrc` predates this: the link step backs the old
-file up under `~/.agent-config-backups/`, so move anything machine-specific out
-of that backup into `~/.zshrc.local`.
+```
+# >>> dotfiles (managed by install script; edits inside are overwritten) >>>
+…tracked .zshrc…
+# <<< dotfiles <<<
+```
+
+Each run replaces only that block and leaves everything outside it alone. To
+change shared settings, edit `.zshrc` here and rerun `bootstrap.sh`, or sync
+just the block with `python3 lib/managed-block.py "$PWD/.zshrc" ~/.zshrc 0`.
+Edits made inside the block in `~/.zshrc` are lost on the next run.
+
+PATH entries, tokens, and per-host tweaks go below the block or in
+`~/.zshrc.local`, which the tracked `.zshrc` sources when it exists — never in
+the tracked `.zshrc`, which is public.
+
+A machine still on the old setup, where `~/.zshrc` linked to this repo, is
+migrated on the next run: the link is replaced by a file holding just the block.
+An existing `~/.zshrc` without the markers gets the block appended. Either way
+the previous file is backed up under `~/.agent-config-backups/`.
 
 Already-cloned checkout missing `ai/vendor/`? Run
 `git submodule update --init --recursive`.
