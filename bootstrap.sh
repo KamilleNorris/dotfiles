@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Sets up zsh, oh-my-zsh, and the plugins .zshrc expects, then links .zshrc.
+# Sets up zsh, oh-my-zsh, and the plugins .zshrc expects, then syncs .zshrc
+# into ~/.zshrc.
 # Works on macOS (Homebrew) and Debian/Ubuntu (apt). Idempotent.
 # DRY_RUN=1 prints what it would do without changing anything.
 set -euo pipefail
@@ -59,7 +60,7 @@ install_oh_my_zsh() {
     log "would install oh-my-zsh (unattended)"
     return
   fi
-  # KEEP_ZSHRC stops the installer replacing the .zshrc this script links
+  # KEEP_ZSHRC stops the installer replacing the ~/.zshrc this script manages
   RUNZSH=no CHSH=no KEEP_ZSHRC=yes \
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 }
@@ -78,10 +79,10 @@ install_oh_my_zsh
 install_plugin https://github.com/zsh-users/zsh-autosuggestions zsh-autosuggestions
 install_plugin https://github.com/zsh-users/zsh-syntax-highlighting zsh-syntax-highlighting
 
-# Linked, not appended: appending duplicates on every run and lets the live file
-# drift from the tracked one. Machine-specific lines belong in ~/.zshrc.local,
-# which the tracked .zshrc sources when present.
-link "$REPO/.zshrc" "$HOME/.zshrc"
+# ~/.zshrc belongs to the machine, so installers that append to it edit the
+# live file rather than this repo. The tracked .zshrc is kept in a marked block
+# that each run replaces in place; lines outside the block are left alone.
+python3 "$REPO/lib/managed-block.py" "$REPO/.zshrc" "$HOME/.zshrc" "$DRY_RUN"
 
 if [ "$SHELL" != "$(command -v zsh)" ]; then
   log ""
