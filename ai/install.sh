@@ -35,8 +35,24 @@ link() {
   log "link  $dest -> $src"
 }
 
-# Shared skill store, read by any agent that resolves ~/.agents/skills
-link "$REPO/skills" "$HOME/.agents/skills"
+# Shared skill store, read by any agent that resolves ~/.agents/skills. Global
+# installs (npx skills add -g) write into it too, so it stays a real directory
+# and only this repo's skills are linked in, one per skill. Older setups linked
+# the whole directory to $REPO/skills; that link is replaced with a directory.
+store="$HOME/.agents/skills"
+if [ -L "$store" ] && [ "$(readlink "$store")" = "$REPO/skills" ]; then
+  if [ "$DRY_RUN" = "1" ]; then
+    log "would replace $store link with a directory"
+  else
+    rm "$store"
+    log "unlink $store (was -> $REPO/skills)"
+  fi
+fi
+[ "$DRY_RUN" = "1" ] || mkdir -p "$store"
+for skill in "$REPO"/skills/*/; do
+  [ -d "$skill" ] || continue
+  link "${skill%/}" "$store/$(basename "$skill")"
+done
 
 # Claude Code
 if [ -d "$HOME/.claude" ] || command -v claude >/dev/null 2>&1; then
