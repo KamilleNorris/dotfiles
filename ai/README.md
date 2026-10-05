@@ -8,12 +8,13 @@ already staged in git.
 
 | Path | What it is |
 | --- | --- |
-| `AGENTS.md` | Canonical global instructions. Linked to Claude's `CLAUDE.md`, Copilot's `copilot-instructions.md`, Gemini's `GEMINI.md`. |
+| `AGENTS.md` | Canonical global instructions. Linked to Claude's `CLAUDE.md`, Copilot's `copilot-instructions.md`, Gemini's `GEMINI.md`, and Kiro's `~/.kiro/steering/agents.md`. |
 | `skills/` | Portable `SKILL.md` skills you author. Each is linked into the shared `~/.agents/skills` store that Claude Code and Copilot CLI both read. That store is a real directory, so global installs (`npx skills add -g`) land there and stay out of this repo. |
 | `vendor/` | Submodules for skills authored elsewhere; `skills/` holds symlinks into them rather than copies. |
 | `prompts/` | Reusable prompt snippets, referenced from skills or pasted by hand. |
 | `adapters/claude/` | Claude Code settings and statusline. |
 | `adapters/herdr/` | herdr's `config.toml`, plus the plugin set to reinstall by source. |
+| `adapters/kiro/` | Kiro CLI's `cli.json` settings seed and adapter notes. Instructions ride in via `~/.kiro/steering/`. |
 
 ## Install
 

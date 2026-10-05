@@ -73,6 +73,20 @@ fi
 # personal skills from ~/.agents/skills, linked above
 [ -d "$HOME/.copilot" ] && link "$REPO/AGENTS.md" "$HOME/.copilot/copilot-instructions.md"
 
+# Kiro CLI's default agent loads global instructions from ~/.kiro/steering/*.md
+# and discovers skills under ~/.kiro/skills. cli.json is Kiro's own flat-schema
+# settings file, seeded only when absent since Kiro rewrites it.
+if [ -d "$HOME/.kiro" ] || command -v kiro-cli >/dev/null 2>&1; then
+  link "$REPO/AGENTS.md" "$HOME/.kiro/steering/agents.md"
+  link_if_absent "$REPO/adapters/kiro/cli.json" "$HOME/.kiro/settings/cli.json"
+
+  for skill in "$REPO"/skills/*/; do
+    [ -d "$skill" ] || continue
+    name="$(basename "$skill")"
+    link "$HOME/.agents/skills/$name" "$HOME/.kiro/skills/$name"
+  done
+fi
+
 # herdr keeps one hand-authored file; the rest of its config dir is generated
 [ -d "$HOME/.config/herdr" ] && link "$REPO/adapters/herdr/config.toml" "$HOME/.config/herdr/config.toml"
 
