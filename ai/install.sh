@@ -37,10 +37,31 @@ link() {
   log "link  $dest -> $src"
 }
 
+# Skills published separately live in a working clone of agent-skills; it is
+# cloned when missing and its skills are linked alongside this repo's own.
+AGENT_SKILLS_URL="https://github.com/KamilleNorris/agent-skills.git"
+AGENT_SKILLS_DIR="${AGENT_SKILLS_DIR:-$HOME/projects/agent-skills}"
+if [ ! -d "$AGENT_SKILLS_DIR/.git" ]; then
+  if [ -e "$AGENT_SKILLS_DIR" ]; then
+    log "warn  $AGENT_SKILLS_DIR exists but is not a git checkout; its skills are skipped"
+  elif [ "$DRY_RUN" = "1" ]; then
+    log "would clone $AGENT_SKILLS_URL -> $AGENT_SKILLS_DIR"
+  else
+    git clone --quiet "$AGENT_SKILLS_URL" "$AGENT_SKILLS_DIR"
+    log "clone $AGENT_SKILLS_URL -> $AGENT_SKILLS_DIR"
+  fi
+fi
+
+skill_dirs=()
+for skill in "$REPO"/skills/*/ "$AGENT_SKILLS_DIR"/skills/*/; do
+  if [ -d "$skill" ]; then skill_dirs+=("${skill%/}"); fi
+done
+
 # Shared skill store, read by any agent that resolves ~/.agents/skills. Global
 # installs (npx skills add -g) write into it too, so it stays a real directory
-# and only this repo's skills are linked in, one per skill. Older setups linked
-# the whole directory to $REPO/skills; that link is replaced with a directory.
+# and only the skills collected above are linked in, one per skill. Older
+# setups linked the whole directory to $REPO/skills; that link is replaced with
+# a directory.
 store="$HOME/.agents/skills"
 if [ -L "$store" ] && [ "$(readlink "$store")" = "$REPO/skills" ]; then
   if [ "$DRY_RUN" = "1" ]; then
@@ -51,9 +72,8 @@ if [ -L "$store" ] && [ "$(readlink "$store")" = "$REPO/skills" ]; then
   fi
 fi
 [ "$DRY_RUN" = "1" ] || mkdir -p "$store"
-for skill in "$REPO"/skills/*/; do
-  [ -d "$skill" ] || continue
-  link "${skill%/}" "$store/$(basename "$skill")"
+for skill in ${skill_dirs[@]+"${skill_dirs[@]}"}; do
+  link "$skill" "$store/$(basename "$skill")"
 done
 
 # Claude Code
@@ -64,8 +84,7 @@ if [ -d "$HOME/.claude" ] || command -v claude >/dev/null 2>&1; then
 
   # Claude Code discovers skills under ~/.claude/skills, so point one link per
   # skill at the shared store
-  for skill in "$REPO"/skills/*/; do
-    [ -d "$skill" ] || continue
+  for skill in ${skill_dirs[@]+"${skill_dirs[@]}"}; do
     name="$(basename "$skill")"
     link "$HOME/.agents/skills/$name" "$HOME/.claude/skills/$name"
   done
@@ -82,8 +101,7 @@ if [ -d "$HOME/.kiro" ] || command -v kiro-cli >/dev/null 2>&1; then
   link "$REPO/AGENTS.md" "$HOME/.kiro/steering/agents.md"
   link_if_absent "$REPO/adapters/kiro/cli.json" "$HOME/.kiro/settings/cli.json"
 
-  for skill in "$REPO"/skills/*/; do
-    [ -d "$skill" ] || continue
+  for skill in ${skill_dirs[@]+"${skill_dirs[@]}"}; do
     name="$(basename "$skill")"
     link "$HOME/.agents/skills/$name" "$HOME/.kiro/skills/$name"
   done
