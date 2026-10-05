@@ -15,28 +15,6 @@ for vendored in "$REPO"/vendor/*/; do
   fi
 done
 
-link() {
-  local src="$1" dest="$2"
-  [ -e "$src" ] || { log "skip  $dest (missing source)"; return; }
-  if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$src" ]; then
-    log "ok    $dest"
-    return
-  fi
-  if [ "$DRY_RUN" = "1" ]; then
-    log "would link $dest -> $src"
-    return
-  fi
-  mkdir -p "$(dirname "$dest")"
-  if [ -e "$dest" ] || [ -L "$dest" ]; then
-    local backup="$BACKUP_DIR/$(printf '%s' "${dest#$HOME/}" | tr '/' '_').bak-$STAMP"
-    mkdir -p "$BACKUP_DIR"
-    mv "$dest" "$backup"
-    log "backup $dest -> $backup"
-  fi
-  ln -s "$src" "$dest"
-  log "link  $dest -> $src"
-}
-
 # Skills published separately live in a working clone of agent-skills; it is
 # cloned when missing and its skills are linked alongside this repo's own.
 AGENT_SKILLS_URL="https://github.com/KamilleNorris/agent-skills.git"
