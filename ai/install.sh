@@ -9,9 +9,11 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Skills vendored as submodules are symlinks into ai/vendor; a missing checkout
 # leaves those links dangling
-if [ -f "$REPO/../.gitmodules" ] && [ -z "$(ls -A "$REPO/vendor/explain-diff" 2>/dev/null)" ]; then
-  log "warn  ai/vendor/explain-diff is empty; run: git submodule update --init --recursive"
-fi
+for vendored in "$REPO"/vendor/*/; do
+  if [ -z "$(ls -A "$vendored" 2>/dev/null)" ]; then
+    log "warn  ai/vendor/$(basename "$vendored") is empty; run: git submodule update --init --recursive"
+  fi
+done
 
 link() {
   local src="$1" dest="$2"
