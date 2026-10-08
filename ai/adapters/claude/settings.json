@@ -1,6 +1,5 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "model": "opus[1m]",
   "permissions": {
     "allow": [
       "Read(~/dotfiles/**)",
@@ -9,6 +8,7 @@
       "Edit(~/dotfiles/ai/adapters/claude/settings.json)"
     ]
   },
+  "model": "opus",
   "statusLine": {
     "type": "command",
     "command": "~/.claude/statusline.sh",
@@ -63,5 +63,27 @@
         "repo": "max-sixty/worktrunk"
       }
     }
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/dotfiles/ai/adapters/claude/hooks/require-claude-comment-prefix.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__claude_ai_Atlassian__addCommentToJiraIssue",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/dotfiles/ai/adapters/claude/hooks/require-claude-comment-prefix.sh"
+          }
+        ]
+      }
+    ]
   }
 }
