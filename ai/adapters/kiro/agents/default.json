@@ -1,0 +1,31 @@
+{
+  "name": "default",
+  "description": "Default agent with worktrunk (wt) and agent-browser commands auto-approved",
+  "tools": [
+    "*"
+  ],
+  "allowedTools": [
+    "read",
+    "grep",
+    "glob",
+    "code"
+  ],
+  "toolsSettings": {
+    "shell": {
+      "allowedCommands": [
+        "wt( .*)?",
+        "wt -C .*",
+        "agent-browser( .*)?"
+      ],
+      "autoAllowReadonly": true
+    }
+  },
+  "hooks": {
+    "preToolUse": [
+      {
+        "matcher": "execute_bash",
+        "command": "~/dotfiles/ai/hooks/require-agent-comment-prefix.sh"
+      }
+    ]
+  }
+}

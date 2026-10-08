@@ -71,7 +71,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/dotfiles/ai/adapters/claude/hooks/require-claude-comment-prefix.sh"
+            "command": "~/dotfiles/ai/hooks/require-agent-comment-prefix.sh"
           }
         ]
       },
@@ -80,7 +80,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/dotfiles/ai/adapters/claude/hooks/require-claude-comment-prefix.sh"
+            "command": "~/dotfiles/ai/hooks/require-agent-comment-prefix.sh"
           }
         ]
       }

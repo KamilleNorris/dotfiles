@@ -74,10 +74,12 @@ fi
 
 # Kiro CLI's default agent loads global instructions from ~/.kiro/steering/*.md
 # and discovers skills under ~/.kiro/skills. cli.json is Kiro's own flat-schema
-# settings file, seeded only when absent since Kiro rewrites it.
+# settings file, seeded only when absent since Kiro rewrites it. The default
+# agent config carries the hooks, which Kiro only reads from agent configs.
 if [ -d "$HOME/.kiro" ] || command -v kiro-cli >/dev/null 2>&1; then
   link "$REPO/AGENTS.md" "$HOME/.kiro/steering/agents.md"
   link_if_absent "$REPO/adapters/kiro/cli.json" "$HOME/.kiro/settings/cli.json"
+  link "$REPO/adapters/kiro/agents/default.json" "$HOME/.kiro/agents/default.json"
 
   for skill in ${skill_dirs[@]+"${skill_dirs[@]}"}; do
     name="$(basename "$skill")"

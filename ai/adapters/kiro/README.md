@@ -13,7 +13,12 @@ it, so machine-specific values stay out of this repo.
 Skills are linked one per skill into `~/.kiro/skills/<name>`, pointing at the
 shared `~/.agents/skills` store, the same store the other agents read.
 
+`agents/default.json` is the default agent's config, linked to
+`~/.kiro/agents/default.json`. Kiro reads hooks only from agent configs, so it
+carries the `preToolUse` hook that runs `ai/hooks/require-agent-comment-prefix.sh`
+(the same script Claude Code's hooks run).
+
 What stays out: everything else under `~/.kiro` is machine state —
-`sessions/`, `agents/` (generated), the rest of `settings/`
+`sessions/`, other files in `agents/`, the rest of `settings/`
 (`feed_state.json`, `survey_state.json`), and existing hand-authored steering
 files that predate this link (e.g. `tool-preferences.md`).
