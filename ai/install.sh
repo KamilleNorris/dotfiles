@@ -78,6 +78,9 @@ fi
 # agent config carries the hooks, which Kiro only reads from agent configs.
 if [ -d "$HOME/.kiro" ] || command -v kiro-cli >/dev/null 2>&1; then
   link "$REPO/AGENTS.md" "$HOME/.kiro/steering/agents.md"
+  for steer in "$REPO"/adapters/kiro/steering/*.md; do
+    [ -e "$steer" ] && link "$steer" "$HOME/.kiro/steering/$(basename "$steer")"
+  done
   link_if_absent "$REPO/adapters/kiro/cli.json" "$HOME/.kiro/settings/cli.json"
   link "$REPO/adapters/kiro/agents/default.json" "$HOME/.kiro/agents/default.json"
 

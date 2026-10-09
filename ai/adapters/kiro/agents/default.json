@@ -25,6 +25,10 @@
       {
         "matcher": "execute_bash",
         "command": "~/dotfiles/ai/hooks/require-agent-comment-prefix.sh"
+      },
+      {
+        "matcher": "execute_bash",
+        "command": "~/dotfiles/ai/hooks/require-kiro-commit-trailer.sh"
       }
     ]
   }
