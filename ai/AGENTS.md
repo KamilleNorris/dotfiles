@@ -35,5 +35,5 @@
 - Run git/gh and other commands directly from the worktree working directory — do not cd into the main project directory first.
 - As soon as a worktree is the target for implementation, switch the session context into that worktree directory (e.g. EnterWorktree) before reading, editing, or running commands.
 
-# Tooling
-- @lh CodeArtifact auth failures (pnpm 401, yarn YN0041): tell me to run `awslogin` in my own terminal (not via `!`). Don't suggest raw `aws codeartifact` or aws-vault commands. Yarn 4 repos read `CODEARTIFACT_AUTH_TOKEN` from env, not `~/.npmrc` — pass the `~/.npmrc` token in for that run; don't edit `.yarnrc.yml`.
+# Instruction Files
+- This file is committed to a public dotfiles repo. Never add company-specific rules here; put work rules in `~/projects/CLAUDE.md`, which isn't in any repo.
