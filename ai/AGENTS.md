@@ -36,4 +36,4 @@
 - As soon as a worktree is the target for implementation, switch the session context into that worktree directory (e.g. EnterWorktree) before reading, editing, or running commands.
 
 # Instruction Files
-- This file is committed to a public dotfiles repo. Never add company-specific rules here; put work rules in `~/projects/CLAUDE.md`, which isn't in any repo.
+- This file is committed to a public dotfiles repo. Never add company-specific rules here; put work rules in a `CLAUDE.md` in the directory that holds all the checked-out work repos, which isn't itself a repo.
