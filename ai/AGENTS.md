@@ -30,6 +30,10 @@
 - At the end of each plan, give me a list of unresolved questions if any. Make the questions extremely concise.
 
 # Worktrees
+- Create every new branch in its own new worktree (`wt switch --create`), even when a skill or doc just says to make a branch, unless I say otherwise.
 - Always use `wt` (worktrunk) for worktree operations — never raw `git worktree add/remove/list`.
 - Run git/gh and other commands directly from the worktree working directory — do not cd into the main project directory first.
 - As soon as a worktree is the target for implementation, switch the session context into that worktree directory (e.g. EnterWorktree) before reading, editing, or running commands.
+
+# Tooling
+- @lh CodeArtifact auth failures (pnpm 401, yarn YN0041): tell me to run `awslogin` in my own terminal (not via `!`). Don't suggest raw `aws codeartifact` or aws-vault commands. Yarn 4 repos read `CODEARTIFACT_AUTH_TOKEN` from env, not `~/.npmrc` — pass the `~/.npmrc` token in for that run; don't edit `.yarnrc.yml`.
