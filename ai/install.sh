@@ -93,8 +93,11 @@ fi
 # herdr keeps one hand-authored file; the rest of its config dir is generated
 [ -d "$HOME/.config/herdr" ] && link "$REPO/adapters/herdr/config.toml" "$HOME/.config/herdr/config.toml"
 
-# Cursor reads AGENTS.md directly
-[ -d "$HOME/.cursor" ] && link "$REPO/AGENTS.md" "$HOME/.cursor/AGENTS.md"
+# Cursor reads AGENTS.md directly. User hooks live in ~/.cursor/hooks.json.
+if [ -d "$HOME/.cursor" ]; then
+  link "$REPO/AGENTS.md" "$HOME/.cursor/AGENTS.md"
+  link "$REPO/adapters/cursor/hooks.json" "$HOME/.cursor/hooks.json"
+fi
 
 # Gemini CLI looks for GEMINI.md unless contextFileName is overridden
 [ -d "$HOME/.gemini" ] && link "$REPO/AGENTS.md" "$HOME/.gemini/GEMINI.md"

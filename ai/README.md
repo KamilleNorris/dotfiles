@@ -15,6 +15,7 @@ already staged in git.
 | `adapters/claude/` | Claude Code settings and statusline. |
 | `adapters/herdr/` | herdr's `config.toml`, plus the plugin set to reinstall by source. |
 | `adapters/kiro/` | Kiro CLI's `cli.json` settings seed and adapter notes. Instructions ride in via `~/.kiro/steering/`. |
+| `adapters/cursor/` | Cursor user hooks, linked to `~/.cursor/hooks.json`. |
 
 ## Install
 
