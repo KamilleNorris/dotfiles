@@ -56,7 +56,10 @@ deny() {
 }
 
 # https://conventionalcomments.org/ — label, optional decorations, then a subject.
-CONVENTIONAL_RE='^(praise|nitpick|suggestion|issue|todo|question|thought|chore|note|typo|polish|quibble)( \([^)]+\))?: [^[:space:]].*'
+# The label may be bolded for Markdown: **suggestion:** or **suggestion**:
+LABEL='praise|nitpick|suggestion|issue|todo|question|thought|chore|note|typo|polish|quibble'
+DECORATION='( \([^)]+\))?'
+CONVENTIONAL_RE="^(${LABEL})${DECORATION}: [^[:space:]].*|^\*\*(${LABEL})${DECORATION}:\*\* [^[:space:]].*|^\*\*(${LABEL})${DECORATION}\*\*: [^[:space:]].*"
 
 # First non-empty line is the conventional comment; last non-empty line is the agent marker.
 require_comment_shape() {
@@ -65,7 +68,7 @@ require_comment_shape() {
     first="$(awk 'NF { sub(/[[:space:]]+$/, ""); print; exit }' <<<"$body")"
     last="$(awk 'NF { sub(/[[:space:]]+$/, ""); line=$0 } END { print line }' <<<"$body")"
     grep -Eq "$CONVENTIONAL_RE" <<<"$first" ||
-        deny "${where} must be a conventional comment (https://conventionalcomments.org/). Start with a label, for example 'suggestion: short summary'."
+        deny "${where} must be a conventional comment (https://conventionalcomments.org/). Start with a bold label, for example '**suggestion:** short summary'."
     [[ "$last" == "$PREFIX" ]] ||
         deny "${where} must end with \"${PREFIX}\" on its own line."
 }
