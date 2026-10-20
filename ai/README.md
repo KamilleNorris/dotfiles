@@ -12,6 +12,7 @@ already staged in git.
 | `skills/` | Portable `SKILL.md` skills you author. Each is linked into the shared `~/.agents/skills` store that Claude Code and Copilot CLI both read. That store is a real directory, so global installs (`npx skills add -g`) land there and stay out of this repo. |
 | `vendor/` | Submodules for third-party skills, pinned to a reviewed commit; `skills/` holds symlinks into them rather than copies. |
 | `prompts/` | Reusable prompt snippets, referenced from skills or pasted by hand. |
+| `routines/` | Scripts run by scheduled assistant routines (PR review queue, merged-worktree cleanup). Called by full path, not linked onto PATH. |
 | `adapters/claude/` | Claude Code settings and statusline. |
 | `adapters/herdr/` | herdr's `config.toml`, plus the plugin set to reinstall by source. |
 | `adapters/kiro/` | Kiro CLI's `cli.json` settings seed and adapter notes. Instructions ride in via `~/.kiro/steering/`. |

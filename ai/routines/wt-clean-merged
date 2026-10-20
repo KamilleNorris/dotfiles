@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# wt-clean-merged: find (and optionally remove) worktrunk worktrees whose branch is merged to main.
+#   wt-clean-merged            list merged worktrees (repo<TAB>branch<TAB>how<TAB>changes)
+#   wt-clean-merged --remove   remove every clean merged worktree with `wt remove` (never forced)
+#   wt-clean-merged --remove repo:branch ...   remove only those, if still clean and merged
+# Repos scanned: every git repo directly under $WT_CLEAN_ROOT (default ~/projects).
+set -uo pipefail
+ROOT="${WT_CLEAN_ROOT:-$HOME/projects}"
+
+candidates() {
+  for d in "$ROOT"/*/; do
+    d="${d%/}"; [ -d "$d/.git" ] || continue
+    repo="$(basename "$d")"
+    json="$(cd "$d" && command wt list --format json 2>/dev/null)" || continue
+    printf '%s' "$json" | jq -r '.items[] | select(.worktree != null and .worktree.main != true)
+      | [.branch, .display.state, ([(.worktree.changes // {}) | to_entries[] | select(.value==true) | .key] | join(","))] | @tsv' |
+    while IFS=$'\t' read -r branch state dirty; do
+      [ -n "$branch" ] || continue
+      open="$(cd "$d" && gh pr list --head "$branch" --state open --json number --jq 'length' 2>/dev/null || echo 0)"
+      [ "${open:-0}" = "0" ] || continue
+      how=""
+      if [ "$state" = "integrated" ]; then how="integrated"
+      else
+        pr="$(cd "$d" && gh pr list --head "$branch" --base main --state merged --json number --jq '.[0].number // empty' 2>/dev/null)"
+        [ -n "$pr" ] && how="merged PR #$pr"
+      fi
+      [ -n "$how" ] || continue
+      printf '%s\t%s\t%s\t%s\n' "$repo" "$branch" "$how" "${dirty:-clean}"
+    done
+  done
+}
+
+if [ "${1:-}" != "--remove" ]; then candidates; exit 0; fi
+shift
+status=0
+while IFS=$'\t' read -r repo branch how changes; do
+  if [ $# -gt 0 ]; then
+    want=0; for a in "$@"; do [ "$a" = "$repo:$branch" ] && want=1; done
+    [ $want = 1 ] || continue
+  fi
+  if [ "$changes" != "clean" ]; then echo "SKIPPED $repo:$branch (uncommitted: $changes)"; continue; fi
+  if (cd "$ROOT/$repo" && command wt remove --foreground "$branch" >/dev/null 2>&1); then
+    echo "REMOVED $repo:$branch ($how)"
+  else
+    echo "FAILED  $repo:$branch"; status=1
+  fi
+done < <(candidates)
+exit $status

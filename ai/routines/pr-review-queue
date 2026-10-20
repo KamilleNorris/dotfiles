@@ -1,0 +1,274 @@
+#!/usr/bin/env python3
+"""pr-review-queue: READ-ONLY. Builds Kamille's PR review list with gh and prints finished markdown.
+Never modifies anything on GitHub (only gh search / gh pr view / gh api GETs).
+
+  pr-review-queue              markdown list (morning run)
+  pr-review-queue --midday     same, marking items new/changed since today 8:30 AM ET with a 🆕
+  pr-review-queue --since ISO  same, with a custom since time (naive times are ET)
+  pr-review-queue --window-start ISO   override the window start (default 00:00 ET previous weekday)
+  pr-review-queue --json       raw JSON (debugging; same shape as the old script + timelineEvents)
+Prints exactly NOTHING when there's nothing to show. Original script: ~/bin/pr-review-queue.bak
+"""
+import argparse, json, subprocess, sys
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+
+ET = ZoneInfo("America/New_York")
+FIELDS = ("number,title,url,author,isDraft,createdAt,updatedAt,additions,deletions,changedFiles,"
+          "assignees,reviewRequests,latestReviews,reviews,comments,commits,baseRefName,headRefName,mergeStateStatus")
+BOTS = {"dependabot", "dependabot-preview", "renovate", "renovate-bot", "github-actions", "snyk-bot",
+        "codecov", "sonarcloud", "vercel", "netlify", "linear", "copilot", "mergify"}
+
+
+def gh(args, check=True):
+    r = subprocess.run(["gh", *args], capture_output=True, text=True)
+    if r.returncode != 0:
+        if check:
+            sys.stderr.write(f"gh {' '.join(args)} failed: {r.stderr.strip()}\n")
+            sys.exit(2)
+        return None
+    return r.stdout
+
+
+def ts(s):
+    return datetime.fromisoformat(s.replace("Z", "+00:00")) if s else None
+
+
+def is_bot(a):
+    if not a:
+        return False
+    l = (a.get("login") or "").lower()
+    base = l.removeprefix("app/").removesuffix("[bot]")
+    return bool(a.get("is_bot")) or l.endswith("[bot]") or l.startswith("app/") or base in BOTS
+
+
+def search(kind, me):
+    out = gh(["search", "prs", "--state", "open", f"--{kind}", me, "--limit", "100", "--json", "repository,number"])
+    return [(x["repository"]["nameWithOwner"], x["number"]) for x in json.loads(out)]
+
+
+_co = {}
+def codeowners(repo):
+    if repo not in _co:
+        txt = None
+        for p in (".github/CODEOWNERS", "CODEOWNERS", "docs/CODEOWNERS"):
+            txt = gh(["api", f"repos/{repo}/contents/{p}", "-H", "Accept: application/vnd.github.raw"], check=False)
+            if txt is not None:
+                break
+        _co[repo] = txt
+    return _co[repo]
+
+
+def timeline_events(repo, n):
+    jq = ('.[] | select(.event=="review_requested" or .event=="assigned") | '
+          '{ev:.event, at:.created_at, user:(.requested_reviewer.login // .assignee.login // null), '
+          'team:(.requested_team.slug // null)}')
+    out = gh(["api", "--paginate", f"repos/{repo}/issues/{n}/timeline?per_page=100", "--jq", jq], check=False)
+    return [json.loads(l) for l in (out or "").splitlines() if l.strip()]
+
+
+def fetch(item, me, full):
+    (repo, n), why = item
+    out = gh(["pr", "view", str(n), "-R", repo, "--json", FIELDS + (",files,statusCheckRollup" if full else "")], check=False)
+    if out is None:
+        return {"repo": repo, "number": n, "error": True}
+    pr = json.loads(out)
+    pr.update(repo=repo, why=sorted(why), me=me)
+    if why & {"review-requested", "assigned"}:
+        pr["timelineEvents"] = timeline_events(repo, n)
+    if full:
+        pr["codeowners"] = codeowners(repo)
+    return pr
+
+
+def prev_weekday_start(now):
+    """00:00 ET on the previous weekday (Mon/Sat/Sun -> last Friday)."""
+    d = now.astimezone(ET).date() - timedelta(days=1)
+    while d.weekday() >= 5:
+        d -= timedelta(days=1)
+    return datetime(d.year, d.month, d.day, tzinfo=ET)
+
+
+def parse_iso(v):
+    t = datetime.fromisoformat(v.replace("Z", "+00:00"))
+    return t if t.tzinfo else t.replace(tzinfo=ET)
+
+
+def ago(t, now):
+    s = (now - t).total_seconds()
+    if s < 3600:
+        return f"{max(1, int(s // 60))}m"
+    if s < 86400:
+        return f"{int(s // 3600)}h"
+    return f"{int(s // 86400)}d"
+
+
+def fmt_et(t, with_day=True):
+    t = t.astimezone(ET)
+    h = t.strftime("%I:%M %p").lstrip("0")
+    return (t.strftime("%a ") if with_day else "") + h
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--json", action="store_true")
+    ap.add_argument("--since")
+    ap.add_argument("--midday", action="store_true")
+    ap.add_argument("--window-start")
+    a = ap.parse_args()
+    now = datetime.now(timezone.utc)
+    since = None
+    if a.midday:
+        d = now.astimezone(ET).date()
+        since = datetime(d.year, d.month, d.day, 8, 30, tzinfo=ET)
+    if a.since:
+        since = parse_iso(a.since)
+
+    me = gh(["api", "user", "--jq", ".login"]).strip()
+    why = {}
+    for kind, label in (("review-requested", "review-requested"), ("assignee", "assigned"), ("author", "authored")):
+        for k in search(kind, me):
+            why.setdefault(k, set()).add(label)
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        prs = list(ex.map(lambda it: fetch(it, me, a.json), why.items()))
+
+    if a.json:
+        print(json.dumps({"generated_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "prs": prs}, indent=1))
+        return
+
+    errors = [p for p in prs if p.get("error")]
+    prs = [p for p in prs if not p.get("error")]
+    window = parse_iso(a.window_start) if a.window_start else prev_weekday_start(now)
+    sec = {s: {"personal": [], "codeowner": []} for s in ("rereq", "new")}
+    bots = {"rereq": {}, "new": {}}
+    assigned, mine = [], []
+
+    def is_new(t):
+        return bool(since and t and t >= since)
+
+    def line(pr, extra=None, marker_t=None):
+        repo = pr["repo"].split("/")[-1]
+        title = pr["title"].replace("[", "\\[").replace("]", "\\]")
+        au = (pr.get("author") or {}).get("login", "?").removeprefix("app/")
+        bits = [f"[{repo}#{pr['number']} {title}]({pr['url']})", au]
+        if extra:
+            bits.append(extra)
+        bits.append(f"opened {ago(ts(pr['createdAt']), now)} · updated {ago(ts(pr['updatedAt']), now)} ago")
+        if pr.get("isDraft"):
+            bits.append("draft")
+        return "- " + ("🆕 " if is_new(marker_t) else "") + ", ".join(bits)
+
+    for pr in prs:
+        w = set(pr["why"])
+        author = pr.get("author") or {}
+        authored = author.get("login") == me
+        rr = pr.get("reviewRequests") or []
+        personal = any(r.get("login") == me for r in rr)
+        teams = {(r.get("slug") or r.get("name") or "").split("/")[-1].lower() for r in rr if not r.get("login")}
+        mine_rv = [ts(r["submittedAt"]) for r in pr.get("reviews") or []
+                   if (r.get("author") or {}).get("login") == me and r.get("submittedAt") and r.get("state") != "PENDING"]
+        last_mine = max(mine_rv) if mine_rv else None
+        ev = pr.get("timelineEvents") or []
+        rq = [e for e in ev if e.get("ev") == "review_requested"]
+
+        if "review-requested" in w and not authored and (personal or teams):
+            if personal:
+                rts = [ts(e["at"]) for e in rq if e.get("user") == me]
+            else:
+                rts = [ts(e["at"]) for e in rq if e.get("team") and e["team"].lower() in teams]
+            req_at = max(rts) if rts else None
+            if (req_at or ts(pr["createdAt"])) < window:
+                continue  # requested before the window: drop entirely
+            kind = "personal" if personal else "codeowner"
+            if last_mine is None:
+                s = "new"
+            elif personal or (req_at and req_at > last_mine):
+                s = "rereq"
+            else:
+                s = None  # team request she already reviewed; nothing new
+            if s:
+                if kind == "codeowner" and is_bot(author):
+                    b = bots[s].setdefault(pr["repo"].split("/")[-1], {"n": 0, "who": set(), "new": 0})
+                    b["n"] += 1
+                    b["who"].add(author.get("login", "bot").removeprefix("app/").removesuffix("[bot]"))
+                    b["new"] += is_new(req_at or ts(pr["createdAt"]))
+                else:
+                    mt = req_at or ts(pr["createdAt"])
+                    extra = (("re-requested " if s == "rereq" else "requested ") + ago(req_at, now) + " ago") if req_at else None
+                    sec[s][kind].append((mt or now, line(pr, extra, mt)))
+            continue
+        if "assigned" in w and not authored:
+            ats = [ts(e["at"]) for e in ev if e.get("ev") == "assigned" and e.get("user") == me]
+            at = max(ats) if ats else ts(pr["updatedAt"])
+            if at >= window:
+                assigned.append((at, line(pr, f"assigned {ago(at, now)} ago" if ats else None, at)))
+            continue
+        if authored:
+            acts = []
+            for c in pr.get("comments") or []:
+                au = c.get("author") or {}
+                if au.get("login") != me and not is_bot(au) and c.get("createdAt"):
+                    acts.append((ts(c["createdAt"]), au.get("login"), "comment"))
+            for r in pr.get("reviews") or []:
+                au = r.get("author") or {}
+                if au.get("login") != me and not is_bot(au) and r.get("submittedAt"):
+                    st = {"APPROVED": "approved", "CHANGES_REQUESTED": "changes requested"}.get(r.get("state"), "review")
+                    acts.append((ts(r["submittedAt"]), au.get("login"), st))
+            acts = [x for x in acts if x[0] >= window]
+            if acts:
+                who = ", ".join(sorted({x[1] for x in acts}))
+                kinds = sorted({x[2] for x in acts}, key=["changes requested", "approved", "review", "comment"].index)
+                latest = max(x[0] for x in acts)
+                extra = f"{len(acts)} new ({'/'.join(kinds)}) from {who}, latest {ago(latest, now)} ago"
+                mine.append((latest, line(pr, extra, latest)))
+
+    n_rr = sum(len(v) for v in sec["rereq"].values())
+    n_new = sum(len(v) for v in sec["new"].values())
+    b_rr = sum(b["n"] for b in bots["rereq"].values())
+    b_new = sum(b["n"] for b in bots["new"].values())
+    if not (n_rr + n_new + b_rr + b_new + len(assigned) + len(mine)):
+        print("NOTHING")
+        return
+
+    def cnt(n, b):
+        return f"{n}" + (f" + {b} bot" if b else "")
+
+    def hcnt(n, b, label):
+        return f"{n} {label}" + (f" (+{b} bot)" if b else "")
+
+    parts = []
+    if n_rr or b_rr: parts.append(hcnt(n_rr, b_rr, "re-requested"))
+    if n_new or b_new: parts.append(hcnt(n_new, b_new, "new to review"))
+    if assigned: parts.append(f"{len(assigned)} assigned")
+    if mine: parts.append(f"{len(mine)} of yours with new comments")
+    out = [f"**PR review queue** · {fmt_et(now)} ET · since {fmt_et(window).replace(' 12:00 AM', '')} · " + " · ".join(parts)]
+    if since:
+        out.append(f"_🆕 = new or changed since {fmt_et(since, since.astimezone(ET).date() != now.astimezone(ET).date())} ET_")
+
+    def srt(xs):
+        return [l for _, l in sorted(xs, key=lambda x: x[0], reverse=True)]
+
+    for key, title in (("rereq", "Re-requested"), ("new", "New to review")):
+        n, b = (n_rr, b_rr) if key == "rereq" else (n_new, b_new)
+        if not (n or b):
+            continue
+        out += ["", f"**{title} ({cnt(n, b)})**"]
+        if sec[key]["personal"]:
+            out += ["_Personal_"] + srt(sec[key]["personal"])
+        if sec[key]["codeowner"] or bots[key]:
+            out += ["_Code owner_"] + srt(sec[key]["codeowner"])
+            for repo, bb in sorted(bots[key].items()):
+                nw = f", {bb['new']} 🆕" if bb["new"] else ""
+                out.append(f"- {repo}: {bb['n']} bot PR{'s' if bb['n'] != 1 else ''} ({', '.join(sorted(bb['who']))}){nw}")
+    if assigned:
+        out += ["", f"**Assigned to you ({len(assigned)})**"] + srt(assigned)
+    if mine:
+        out += ["", f"**Your PRs with new comments ({len(mine)})**"] + srt(mine)
+    if errors:
+        out += ["", f"_Couldn't load {len(errors)} PR(s): " + ", ".join(f"{e['repo'].split('/')[-1]}#{e['number']}" for e in errors) + "_"]
+    print("\n".join(out))
+
+
+if __name__ == "__main__":
+    main()
