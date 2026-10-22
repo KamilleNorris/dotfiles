@@ -107,7 +107,15 @@ fi
 if [[ "$posts_comment" == true ]]; then
     body="$(extract_heredoc_body "$command")" ||
         deny "GitHub comments must be passed inline in a heredoc, not a body file, so the format can be checked."
-    require_comment_shape "$body" "GitHub comments"
+    # A JSON payload (gh api --input -) is a review: its summary and each inline comment
+    # are separate comments, so each non-empty body is checked on its own.
+    if jq -e 'type == "object"' <<<"$body" >/dev/null 2>&1; then
+        while IFS= read -r encoded_body; do
+            require_comment_shape "$(jq -r . <<<"$encoded_body")" "GitHub comments"
+        done < <(jq -c '(.body // empty), (.comments // [])[].body | select(. != "")' <<<"$body")
+    else
+        require_comment_shape "$body" "GitHub comments"
+    fi
 fi
 
 allow
