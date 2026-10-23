@@ -71,7 +71,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/dotfiles/ai/hooks/require-agent-comment-prefix.sh"
+            "command": "~/dotfiles/ai/hooks/require-conventional-agent-comment.sh"
           }
         ]
       },
@@ -80,7 +80,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/dotfiles/ai/hooks/require-agent-comment-prefix.sh"
+            "command": "~/dotfiles/ai/hooks/require-conventional-agent-comment.sh"
           }
         ]
       }

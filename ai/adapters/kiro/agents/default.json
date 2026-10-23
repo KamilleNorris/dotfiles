@@ -24,7 +24,7 @@
     "preToolUse": [
       {
         "matcher": "execute_bash",
-        "command": "~/dotfiles/ai/hooks/require-agent-comment-prefix.sh"
+        "command": "~/dotfiles/ai/hooks/require-conventional-agent-comment.sh"
       },
       {
         "matcher": "execute_bash",

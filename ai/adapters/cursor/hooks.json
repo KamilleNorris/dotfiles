@@ -3,11 +3,11 @@
   "hooks": {
     "preToolUse": [
       {
-        "command": "~/dotfiles/ai/hooks/require-agent-comment-prefix.sh",
+        "command": "~/dotfiles/ai/hooks/require-conventional-agent-comment.sh",
         "matcher": "Shell"
       },
       {
-        "command": "~/dotfiles/ai/hooks/require-agent-comment-prefix.sh",
+        "command": "~/dotfiles/ai/hooks/require-conventional-agent-comment.sh",
         "matcher": "MCP:.*addOrEditJiraIssueComment"
       }
     ]

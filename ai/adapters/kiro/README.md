@@ -15,7 +15,7 @@ shared `~/.agents/skills` store, the same store the other agents read.
 
 `agents/default.json` is the default agent's config, linked to
 `~/.kiro/agents/default.json`. Kiro reads hooks only from agent configs, so it
-carries the `preToolUse` hook that runs `ai/hooks/require-agent-comment-prefix.sh`
+carries the `preToolUse` hook that runs `ai/hooks/require-conventional-agent-comment.sh`
 (the same script Claude Code and Cursor run).
 
 What stays out: everything else under `~/.kiro` is machine state —
